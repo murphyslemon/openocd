@@ -7,9 +7,9 @@
 
 #include "delay.h"
 
-void delay_5us(void)
-{
-	NOP;
+
+inline void delay_5us(void) {
+    __asm__("nop");  // Inline assembly for ARM, adjust for your platform
 }
 
 void delay_1ms(void)

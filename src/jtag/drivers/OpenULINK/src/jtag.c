@@ -6,7 +6,6 @@
  ***************************************************************************/
 
 #include "jtag.h"
-
 #include "io.h"
 #include "msgtypes.h"
 #include "common.h"

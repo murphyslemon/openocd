@@ -55,10 +55,14 @@ struct timeval {
 #ifndef HAVE_GETTIMEOFDAY
 
 #ifdef _WIN32
+
+#ifndef _TIMEZONE_DEFINED
+#define _TIMEZONE_DEFINED
 struct timezone {
-	int tz_minuteswest;
-	int tz_dsttime;
+    int tz_minuteswest; /* Minutes west of GMT */
+    int tz_dsttime;     /* Type of DST correction */
 };
+#endif
 #endif
 struct timezone;
 

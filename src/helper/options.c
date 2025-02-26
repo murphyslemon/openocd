@@ -118,7 +118,9 @@ static char *find_exe_path(void)
 		*strrchr(exepath, '/') = '\0';
 	} else {
 		LOG_WARNING("Could not determine executable path, using configured BINDIR.");
-		LOG_DEBUG("BINDIR = %s", BINDIR);
+        LOG_DEBUG("BINDIR = %s", BINDIR);
+        LOG_DEBUG("PKGDATADIR = %s", PKGDATADIR);
+
 #ifdef HAVE_REALPATH
 		exepath = realpath(BINDIR, NULL);
 #else

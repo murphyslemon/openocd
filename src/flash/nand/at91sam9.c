@@ -13,6 +13,7 @@
 #include <helper/log.h>
 #include "imp.h"
 #include "arm_io.h"
+#include <inttypes.h>
 
 #define AT91C_PIOX_SODR (0x30)	/**< Offset to PIO SODR. */
 #define AT91C_PIOX_CODR (0x34)	/**< Offset to PIO CODR. */

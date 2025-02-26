@@ -35,6 +35,20 @@
 #include "imp.h"
 #include "mxc.h"
 #include <target/target.h>
+#include <inttypes.h>
+
+#ifdef _WIN32
+#include <intrin.h>
+static inline int ffs(int x) {
+    unsigned long index;
+    if (_BitScanForward(&index, x)) {
+        return index + 1;
+    }
+    return 0;
+}
+#else
+#include <strings.h>
+#endif
 
 #define OOB_SIZE        64
 

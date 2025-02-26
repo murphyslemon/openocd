@@ -17,6 +17,21 @@
 
 #include "time_support.h"
 
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <sys/timeb.h>
+
+int gettimeofday(struct timeval* tp, void* tzp) {
+    struct _timeb timebuffer;
+    _ftime(&timebuffer);
+    tp->tv_sec = (long) timebuffer.time;
+    tp->tv_usec = timebuffer.millitm * 1000;
+    return 0;
+}
+#endif
+
+
 /* simple and low overhead fetching of ms counter. Use only
  * the difference between ms counters returned from this fn.
  */

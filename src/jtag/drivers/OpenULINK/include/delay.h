@@ -10,7 +10,9 @@
 
 #include <stdint.h>
 
+#ifndef NOP
 #define NOP { __asm nop __endasm; }
+#endif
 
 void delay_5us(void);
 void delay_1ms(void);

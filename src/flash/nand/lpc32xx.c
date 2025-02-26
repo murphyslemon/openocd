@@ -20,6 +20,7 @@
 #include "imp.h"
 #include "lpc32xx.h"
 #include <target/target.h>
+#include <inttypes.h>
 
 static int lpc32xx_reset(struct nand_device *nand);
 static int lpc32xx_controller_ready(struct nand_device *nand, int timeout);
