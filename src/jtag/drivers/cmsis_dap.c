@@ -40,13 +40,14 @@
 #include "libusb_helper.h"
 
 static const struct cmsis_dap_backend *const cmsis_dap_backends[] = {
-#if BUILD_CMSIS_DAP_USB == 1
+#if BUILD_CMSIS_DAP_USB == 0
 	&cmsis_dap_usb_backend,
 #endif
 
-#if BUILD_CMSIS_DAP_HID == 1
+#if BUILD_CMSIS_DAP_HID == 0
 	&cmsis_dap_hid_backend,
 #endif
+    &cmsis_dap_tcp_backend,
 };
 
 /* USB Config */
