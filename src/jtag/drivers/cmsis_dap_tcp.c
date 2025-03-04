@@ -50,7 +50,7 @@ int cmsis_dap_tcp_open(struct cmsis_dap *dap, uint16_t vids[], uint16_t pids[], 
 
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(50372);  // Change port as needed
-    inet_pton(AF_INET, "192.168.1.100", &server_addr.sin_addr.s_addr);  // Change to debugger's IP
+    inet_pton(AF_INET, "192.168.85.191", &server_addr.sin_addr.s_addr);  // Change to debugger's IP
 
     if (connect(dap->bdata->socket_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
         LOG_ERROR("Failed to connect to CMSIS-DAP debugger over TCP");
@@ -58,10 +58,16 @@ int cmsis_dap_tcp_open(struct cmsis_dap *dap, uint16_t vids[], uint16_t pids[], 
         return ERROR_FAIL;
     }
 
+    // send a message to the server
+    const char *message = "Hello, server!";
+    send(dap->bdata->socket_fd, message, strlen(message), 0);
+    // TO-DO: verify the initialisation of in and out endpoints
+    LOG_INFO("CMSIS-DAP: Interface Initialised (TCP)");
+    // TO-DO
+
     return ERROR_OK;
 }
 
-//make dummy functions for rest
 void cmsis_dap_tcp_close(struct cmsis_dap *dap)
 {
     close(dap->bdata->socket_fd);
@@ -70,25 +76,31 @@ void cmsis_dap_tcp_close(struct cmsis_dap *dap)
 
 int cmsis_dap_tcp_read(struct cmsis_dap *dap, int transfer_timeout_ms, enum cmsis_dap_blocking blocking)
 {
-    return ERROR_FAIL;
+    int transferred = -4;
+    LOG_INFO("Reading from CMSIS-DAP debugger over TCP");
+    return transferred;
 }
 
 int cmsis_dap_tcp_write(struct cmsis_dap *dap, int len, int timeout_ms)
 {
+    LOG_INFO("Writing to CMSIS-DAP debugger over TCP");
     return ERROR_FAIL;
 }
 
 int cmsis_dap_tcp_packet_alloc(struct cmsis_dap *dap, unsigned int pkt_sz)
 {
+    LOG_INFO("Allocating packet buffer for CMSIS-DAP debugger over TCP");
     return ERROR_FAIL;
 }
 
 void cmsis_dap_tcp_packet_free(struct cmsis_dap *dap)
 {
+    LOG_INFO("Freeing packet buffer for CMSIS-DAP debugger over TCP");
 }
 
 void cmsis_dap_tcp_cancel_all(struct cmsis_dap *dap)
 {
+    LOG_INFO("Cancelling all pending requests for CMSIS-DAP debugger over TCP");
 }
 
 
