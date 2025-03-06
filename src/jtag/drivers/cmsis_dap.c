@@ -1308,7 +1308,7 @@ static int cmsis_dap_init(void)
 	if (retval != ERROR_OK)
 		return retval;
 
-	cmsis_dap_flush_read(cmsis_dap_handle);
+	//cmsis_dap_flush_read(cmsis_dap_handle);
 
 	retval = cmsis_dap_get_caps_info();
 	if (retval != ERROR_OK)

@@ -129,6 +129,7 @@ static int cmsis_dap_tcp_read(struct cmsis_dap *dap, int transfer_timeout_ms, en
 
 static int cmsis_dap_tcp_write(struct cmsis_dap *dap, int txlen, int timeout_ms)
 {
+    LOG_ERROR("CMSIS-DAP over TCP write not implemented yet");
     if (!dap || !dap->bdata)
         return ERROR_FAIL;
 
