@@ -32,9 +32,11 @@ struct cmsis_dap_backend_data {
 
     unsigned int pending_requests;  // Track pending requests
 };
-
-
-int cmsis_dap_tcp_open(struct cmsis_dap *dap, uint16_t vids[], uint16_t pids[], const char *serial)
+/*
+static char *cmsis_dap_tcp_host = NULL;  // NULL means no host is set initially
+static int cmsis_dap_tcp_port = 0;       // 0 means no port is set initially
+*/
+static int cmsis_dap_tcp_open(struct cmsis_dap *dap, uint16_t vids[], uint16_t pids[], const char *serial)
 {
     struct sockaddr_in server_addr;
 
@@ -68,41 +70,166 @@ int cmsis_dap_tcp_open(struct cmsis_dap *dap, uint16_t vids[], uint16_t pids[], 
     return ERROR_OK;
 }
 
-void cmsis_dap_tcp_close(struct cmsis_dap *dap)
+static void cmsis_dap_tcp_close(struct cmsis_dap *dap)
 {
-    close(dap->bdata->socket_fd);
+    if (!dap || !dap->bdata)
+        return;
+
+    // Close the socket connection
+    if (dap->bdata->socket_fd >= 0) {
+#ifdef _WIN32
+        closesocket(dap->bdata->socket_fd);
+#else
+        close(dap->bdata->socket_fd);
+#endif
+        dap->bdata->socket_fd = -1;
+    }
+
+    // Free the allocated memory
     free(dap->bdata);
+    dap->bdata = NULL;
 }
 
-int cmsis_dap_tcp_read(struct cmsis_dap *dap, int transfer_timeout_ms, enum cmsis_dap_blocking blocking)
+static int cmsis_dap_tcp_read(struct cmsis_dap *dap, int transfer_timeout_ms, enum cmsis_dap_blocking blocking)
 {
-    int transferred = -4;
-    LOG_INFO("Reading from CMSIS-DAP debugger over TCP");
-    return transferred;
+    fd_set read_fds;
+    struct timeval timeout;
+    int ret, total_bytes_read = 0;
+
+    FD_ZERO(&read_fds);
+    FD_SET(dap->bdata->socket_fd, &read_fds);
+
+    timeout.tv_sec = transfer_timeout_ms / 1000;
+    timeout.tv_usec = (transfer_timeout_ms % 1000) * 1000;
+
+    if (blocking == CMSIS_DAP_BLOCKING) {
+        ret = select(dap->bdata->socket_fd + 1, &read_fds, NULL, NULL, &timeout);
+        if (ret <= 0) {
+            LOG_ERROR("Timeout or error while waiting for CMSIS-DAP over TCP");
+            return ERROR_FAIL;
+        }
+    }
+
+    /* Ensure we read exactly dap->packet_size bytes */
+    while ((unsigned int)total_bytes_read < dap->packet_size) {
+        int bytes_read = recv(dap->bdata->socket_fd, (char *)(dap->packet_buffer + total_bytes_read),
+                              dap->packet_size - total_bytes_read, 0);
+
+        if (bytes_read <= 0) {
+            LOG_ERROR("Failed to read from CMSIS-DAP over TCP");
+            return ERROR_FAIL;
+        }
+
+        total_bytes_read += bytes_read;
+    }
+
+    LOG_DEBUG_IO("Read %d bytes from CMSIS-DAP over TCP", total_bytes_read);
+    return total_bytes_read;
 }
 
-int cmsis_dap_tcp_write(struct cmsis_dap *dap, int len, int timeout_ms)
+static int cmsis_dap_tcp_write(struct cmsis_dap *dap, int txlen, int timeout_ms)
 {
-    LOG_INFO("Writing to CMSIS-DAP debugger over TCP");
-    return ERROR_FAIL;
+    if (!dap || !dap->bdata)
+        return ERROR_FAIL;
+
+    int total_bytes_sent = 0;
+    int bytes_sent;
+    struct timeval timeout;
+    fd_set write_fds;
+
+    FD_ZERO(&write_fds);
+    FD_SET(dap->bdata->socket_fd, &write_fds);
+
+    timeout.tv_sec = timeout_ms / 1000;
+    timeout.tv_usec = (timeout_ms % 1000) * 1000;
+
+    // Check if the socket is writable within the timeout
+    int ret = select(dap->bdata->socket_fd + 1, NULL, &write_fds, NULL, &timeout);
+    if (ret <= 0) {
+        LOG_ERROR("Timeout or error while writing to CMSIS-DAP over TCP");
+        return ERROR_FAIL;
+    }
+
+    // Send data over TCP
+    while (total_bytes_sent < txlen) {
+        bytes_sent = send(dap->bdata->socket_fd,
+                          (const char *)(dap->packet_buffer + total_bytes_sent),
+                          txlen - total_bytes_sent, 0);
+
+        if (bytes_sent <= 0) {
+            LOG_ERROR("Failed to send data to CMSIS-DAP over TCP");
+            return ERROR_FAIL;
+        }
+
+        total_bytes_sent += bytes_sent;
+    }
+
+    return ERROR_OK;
 }
 
 int cmsis_dap_tcp_packet_alloc(struct cmsis_dap *dap, unsigned int pkt_sz)
 {
-    LOG_INFO("Allocating packet buffer for CMSIS-DAP debugger over TCP");
-    return ERROR_FAIL;
+    // Allocate the main packet buffer
+    dap->packet_buffer = malloc(pkt_sz);
+    if (!dap->packet_buffer) {
+        LOG_ERROR("unable to allocate CMSIS-DAP packet buffer");
+        return ERROR_FAIL;
+    }
+
+    dap->packet_size = pkt_sz;
+    dap->packet_buffer_size = pkt_sz;
+    dap->packet_usable_size = pkt_sz - 1; // Prevent sending zero-size packets
+
+    dap->command = dap->packet_buffer;
+    dap->response = dap->packet_buffer;
+
+    return ERROR_OK;
 }
 
 void cmsis_dap_tcp_packet_free(struct cmsis_dap *dap)
 {
-    LOG_INFO("Freeing packet buffer for CMSIS-DAP debugger over TCP");
+    // Free the allocated packet buffer
+    free(dap->packet_buffer);
+    dap->packet_buffer = NULL;
+    dap->command = NULL;
+    dap->response = NULL;
 }
 
 void cmsis_dap_tcp_cancel_all(struct cmsis_dap *dap)
 {
     LOG_INFO("Cancelling all pending requests for CMSIS-DAP debugger over TCP");
+
+    if (dap->bdata->socket_fd >= 0) {
+        shutdown(dap->bdata->socket_fd, SD_BOTH); // Stop any ongoing transmission on Windows
+        close(dap->bdata->socket_fd);
+        dap->bdata->socket_fd = -1; // Mark as closed
+    }
 }
 
+/*
+COMMAND_HANDLER(cmsis_dap_handle_tcp_config_command)
+        {
+                if (CMD_ARGC == 2) {
+                    COMMAND_PARSE_NUMBER(int, CMD_ARGV[1], cmsis_dap_tcp_port);
+                    cmsis_dap_tcp_host = strdup(CMD_ARGV[0]);
+                } else {
+                    LOG_ERROR("expected exactly two arguments: cmsis_dap_tcp_config <host> <port>");
+                }
+
+                return ERROR_OK;
+        }
+
+const struct command_registration cmsis_dap_tcp_subcommand_handlers[] = {
+        {
+                .name = "config",
+                .handler = &cmsis_dap_handle_tcp_config_command,
+                .mode = COMMAND_CONFIG,
+                .help = "set the TCP host and port to use",
+                .usage = "<host> <port>",
+        },
+        COMMAND_REGISTRATION_DONE
+};
+*/
 
 const struct cmsis_dap_backend cmsis_dap_tcp_backend = {
         .name = "tcp",
