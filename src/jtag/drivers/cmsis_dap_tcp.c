@@ -36,6 +36,11 @@ struct cmsis_dap_backend_data {
 static char *cmsis_dap_tcp_host = NULL;  // NULL means no host is set initially
 static int cmsis_dap_tcp_port = 0;       // 0 means no port is set initially
 */
+
+static void cmsis_dap_tcp_close(struct cmsis_dap *dap);
+int cmsis_dap_tcp_packet_alloc(struct cmsis_dap *dap, unsigned int pkt_sz);
+void cmsis_dap_tcp_packet_free(struct cmsis_dap *dap);
+
 static int cmsis_dap_tcp_open(struct cmsis_dap *dap, uint16_t vids[], uint16_t pids[], const char *serial)
 {
     struct sockaddr_in server_addr;
@@ -65,8 +70,10 @@ static int cmsis_dap_tcp_open(struct cmsis_dap *dap, uint16_t vids[], uint16_t p
     send(dap->bdata->socket_fd, message, strlen(message), 0);
     // TO-DO: verify the initialisation of in and out endpoints
     LOG_INFO("CMSIS-DAP: Interface Initialised (TCP)");
-    // TO-DO
-
+    unsigned int packet_size = 512U;
+    int err = cmsis_dap_tcp_packet_alloc(dap, packet_size);
+    if (err != ERROR_OK)
+        cmsis_dap_tcp_close(dap);
     return ERROR_OK;
 }
 
@@ -114,6 +121,7 @@ static int cmsis_dap_tcp_read(struct cmsis_dap *dap, int transfer_timeout_ms, en
     while ((unsigned int)total_bytes_read < dap->packet_size) {
         int bytes_read = recv(dap->bdata->socket_fd, (char *)(dap->packet_buffer + total_bytes_read),
                               dap->packet_size - total_bytes_read, 0);
+        LOG_INFO("bytes read: %d", bytes_read);
 
         if (bytes_read <= 0) {
             LOG_ERROR("Failed to read from CMSIS-DAP over TCP");
@@ -129,7 +137,7 @@ static int cmsis_dap_tcp_read(struct cmsis_dap *dap, int transfer_timeout_ms, en
 
 static int cmsis_dap_tcp_write(struct cmsis_dap *dap, int txlen, int timeout_ms)
 {
-    LOG_ERROR("CMSIS-DAP over TCP write not implemented yet");
+    //LOG_ERROR("tcp_write: packet size: %u, txlen: %d, timeout: %d", dap->packet_size, txlen, timeout_ms);
     if (!dap || !dap->bdata)
         return ERROR_FAIL;
 
