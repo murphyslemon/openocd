@@ -327,7 +327,6 @@ static void cmsis_dap_flush_read(struct cmsis_dap *dap)
 /* Send a message and receive the reply */
 static int cmsis_dap_xfer(struct cmsis_dap *dap, int txlen)
 {
-    LOG_ERROR("starting xfer");
 	if (dap->write_count + dap->read_count) {
 		LOG_ERROR("internal: queue not empty before xfer");
 	}
@@ -350,7 +349,6 @@ static int cmsis_dap_xfer(struct cmsis_dap *dap, int txlen)
 	retval = dap->backend->read(dap, LIBUSB_TIMEOUT_MS, CMSIS_DAP_BLOCKING);
 	if (retval < 0)
 		return retval;
-
 	uint8_t *resp = dap->response;
 	if (resp[0] == DAP_ERROR) {
 		LOG_ERROR("CMSIS-DAP command 0x%" PRIx8 " not implemented", current_cmd);
@@ -436,11 +434,8 @@ static int cmsis_dap_cmd_dap_swj_sequence(uint8_t s_len, const uint8_t *sequence
 static int cmsis_dap_cmd_dap_info(uint8_t info, uint8_t **data)
 {
 	uint8_t *command = cmsis_dap_handle->command;
-    LOG_ERROR("this is a xfer msg1");
 	command[0] = CMD_DAP_INFO;
-    LOG_ERROR("this is a xfer msg3");
 	command[1] = info;
-    LOG_ERROR("this is a xfer msg4");
 	int retval = cmsis_dap_xfer(cmsis_dap_handle, 2);
 	if (retval != ERROR_OK) {
 		LOG_ERROR("CMSIS-DAP command CMD_INFO failed.");
@@ -1153,6 +1148,7 @@ static int cmsis_dap_get_caps_info(void)
 
 	/* INFO_ID_CAPS - byte */
 	int retval = cmsis_dap_cmd_dap_info(INFO_ID_CAPS, &data);
+    LOG_INFO("dap info success!");
 	if (retval != ERROR_OK)
 		return retval;
 
@@ -1311,7 +1307,7 @@ static int cmsis_dap_init(void)
 	if (retval != ERROR_OK)
 		return retval;
 
-	//cmsis_dap_flush_read(cmsis_dap_handle);
+	cmsis_dap_flush_read(cmsis_dap_handle);
     LOG_ERROR("caps info");
 	retval = cmsis_dap_get_caps_info();
 	if (retval != ERROR_OK)
