@@ -65,10 +65,6 @@ static int cmsis_dap_tcp_open(struct cmsis_dap *dap, uint16_t vids[], uint16_t p
         return ERROR_FAIL;
     }
 
-    // send a message to the server
-    const char *message = "Hello, server!";
-    send(dap->bdata->socket_fd, message, strlen(message), 0);
-    // TO-DO: verify the initialisation of in and out endpoints
     LOG_INFO("CMSIS-DAP: Interface Initialised (TCP)");
     unsigned int packet_size = 512U;
     int err = cmsis_dap_tcp_packet_alloc(dap, packet_size);
@@ -101,8 +97,8 @@ static int cmsis_dap_tcp_read(struct cmsis_dap *dap, int transfer_timeout_ms, en
 {
     fd_set read_fds;
     struct timeval timeout;
-    int ret, total_bytes_read = 0;
-
+    int ret = 0;
+    transfer_timeout_ms *= 4;  // Increase timeout for TCP
     FD_ZERO(&read_fds);
     FD_SET(dap->bdata->socket_fd, &read_fds);
 
@@ -117,22 +113,12 @@ static int cmsis_dap_tcp_read(struct cmsis_dap *dap, int transfer_timeout_ms, en
         }
     }
 
-    /* Ensure we read exactly dap->packet_size bytes */
-    while ((unsigned int)total_bytes_read < dap->packet_size) {
-        int bytes_read = recv(dap->bdata->socket_fd, (char *)(dap->packet_buffer + total_bytes_read),
-                              dap->packet_size - total_bytes_read, 0);
-        LOG_INFO("bytes read: %d", bytes_read);
-
-        if (bytes_read <= 0) {
-            LOG_ERROR("Failed to read from CMSIS-DAP over TCP");
-            return ERROR_FAIL;
-        }
-
-        total_bytes_read += bytes_read;
-    }
-
-    LOG_DEBUG_IO("Read %d bytes from CMSIS-DAP over TCP", total_bytes_read);
-    return total_bytes_read;
+    uint8_t buffer[dap->packet_buffer_size];
+    int received = recv(dap->bdata->socket_fd, (char *)buffer, dap->packet_size, 0);
+    memcpy(dap->packet_buffer, buffer, received);
+    memset(&dap->packet_buffer[received], 0, (dap->packet_buffer_size - received));
+    LOG_DEBUG_IO("Read %d bytes from CMSIS-DAP over TCP", received);
+    return received;
 }
 
 static int cmsis_dap_tcp_write(struct cmsis_dap *dap, int txlen, int timeout_ms)
@@ -140,7 +126,7 @@ static int cmsis_dap_tcp_write(struct cmsis_dap *dap, int txlen, int timeout_ms)
     //LOG_ERROR("tcp_write: packet size: %u, txlen: %d, timeout: %d", dap->packet_size, txlen, timeout_ms);
     if (!dap || !dap->bdata)
         return ERROR_FAIL;
-
+    timeout_ms *= 4;  // Increase timeout for TCP
     int total_bytes_sent = 0;
     int bytes_sent;
     struct timeval timeout;
