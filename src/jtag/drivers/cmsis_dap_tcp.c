@@ -98,7 +98,7 @@ static int cmsis_dap_tcp_read(struct cmsis_dap *dap, int transfer_timeout_ms, en
     fd_set read_fds;
     struct timeval timeout;
     int ret = 0;
-    transfer_timeout_ms *= 4;  // Increase timeout for TCP
+
     FD_ZERO(&read_fds);
     FD_SET(dap->bdata->socket_fd, &read_fds);
 
@@ -126,7 +126,7 @@ static int cmsis_dap_tcp_write(struct cmsis_dap *dap, int txlen, int timeout_ms)
     //LOG_ERROR("tcp_write: packet size: %u, txlen: %d, timeout: %d", dap->packet_size, txlen, timeout_ms);
     if (!dap || !dap->bdata)
         return ERROR_FAIL;
-    timeout_ms *= 4;  // Increase timeout for TCP
+
     int total_bytes_sent = 0;
     int bytes_sent;
     struct timeval timeout;

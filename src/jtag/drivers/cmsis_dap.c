@@ -1143,12 +1143,10 @@ static int cmsis_dap_get_version_info(void)
 
 static int cmsis_dap_get_caps_info(void)
 {
-    LOG_ERROR("before cmsis_dap_cmd_dap_info");
 	uint8_t *data;
 
 	/* INFO_ID_CAPS - byte */
 	int retval = cmsis_dap_cmd_dap_info(INFO_ID_CAPS, &data);
-    LOG_INFO("dap info success!");
 	if (retval != ERROR_OK)
 		return retval;
 
@@ -1308,7 +1306,7 @@ static int cmsis_dap_init(void)
 		return retval;
 
 	cmsis_dap_flush_read(cmsis_dap_handle);
-    LOG_ERROR("caps info");
+
 	retval = cmsis_dap_get_caps_info();
 	if (retval != ERROR_OK)
 		return retval;
